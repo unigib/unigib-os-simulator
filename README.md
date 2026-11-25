@@ -11,6 +11,35 @@ A browser-based teaching simulator for exploring processes and memory. Open `ind
 - Use the terminal's `help`, `pwd`, `ls [path]`, `cd [path]`, `mkdir <path>`, `cat <file>`, `compile`, `ps`, `mem`, `run <editor|browser|music|lab>`, `kill <pid>`, and `clear` commands. `run lab` loads and starts the current playground source at the selected playback delay. Use `ps` to find its PID, then `kill <pid>` to stop it and release its simulated memory. The terminal keeps the latest 300 output entries.
 - In the C playground, edit the example, load it, then use **Step** or **Run slowly** to execute one statement at a time. The example uses `while (1)` to repeat until stopped with `kill <pid>` or the process stop button. The adjustable delay controls playback; **Pause** pauses it without killing the process. The live memory view shows each stack frame, local variable and active heap allocation as calls, `malloc`, `free`, and returns execute. The next source line is shown from the loaded snapshot: edits require loading again. Playback stops on completion, runtime error, or when that process is stopped or another program is loaded. Each load creates a new process; stop it to reclaim its physical memory. The controls operate on the most recently loaded C program. Completed processes remain resident until stopped.
 
+## From simulation to real C
+
+[real_world_lab.c](real_world_lab.c) is a real C program corresponding to the playground example. It repeatedly allocates a 64-byte buffer in `main`, calls `render` (48 bytes), which calls `draw_details` (32 bytes), then frees each allocation in reverse order. It prints its PID, local-variable addresses, heap pointers, calls, and frees with pauses so students can follow along. Edit the size and delay constants at the top to experiment.
+
+On Linux or macOS, with a C compiler installed, run in a terminal in this folder:
+
+```sh
+gcc -std=c11 -O0 -g -Wall -Wextra -Wpedantic real_world_lab.c -o real_world_lab
+./real_world_lab
+```
+
+On Windows, with GCC installed, use PowerShell in this folder:
+
+```powershell
+gcc -std=c11 -O0 -g -Wall -Wextra -Wpedantic real_world_lab.c -o real_world_lab.exe
+.\real_world_lab.exe
+```
+
+Alternatively, in a Visual Studio Developer Command Prompt:
+
+```text
+cl /nologo /W4 /Od /Zi /std:c11 real_world_lab.c /Fe:real_world_lab.exe
+real_world_lab.exe
+```
+
+The program runs until stopped; press **Ctrl+C** or use a second terminal. For example, if it prints PID `1234`, first verify that PID belongs to this program, then use `kill 1234` on Linux/macOS or `Stop-Process -Id 1234` in Windows PowerShell. Use the actual displayed PID, not `1234`. Run with `--once` to complete one iteration normally.
+
+These are real virtual addresses in the process, not the simulator's `$0000`–`$03FF` teaching model. The printed local-variable addresses illustrate stack usage on typical systems, but C does not guarantee a particular stack layout, direction, or address. Heap addresses and reuse also vary; `%p` formatting is implementation-dependent. The real program uses operating-system APIs for its PID and delays and is intentionally outside the simulator's small C subset. Its output is native to the compiler and platform, not the fictional teaching instruction set.
+
 ## Simulated filesystem
 
 The terminal starts in `/home/student`. Paths may be absolute or relative and support `.` and `..`; `cd` without a path returns home. `mkdir` creates one directory at a time, `ls` lists a directory, and `cat` displays a file. Names use letters, numbers, `.`, `_`, and `-`; spaces and shell quoting are not supported. The filesystem is simulated in memory, does not access the computer's files, and resets on refresh.
