@@ -84,24 +84,34 @@
   }
 
   function compileProgram(functions) {
-    const opcodes = { malloc: 0x10, free: 0x11, declare: 0x12, call: 0x13, return: 0x14 };
-    const sizes = { malloc: 11, free: 3, declare: 11, call: 5, return: 1 };
+    const opcodes = { malloc: 0x10, free: 0x11, declare: 0x12, call: 0x13, return: 0x14, "loop-enter": 0x15, "loop-repeat": 0x16 };
+    const sizes = { malloc: 11, free: 3, declare: 11, call: 5, return: 1, "loop-enter": 1, "loop-repeat": 5 };
     const labels = Object.create(null);
+    const offsets = Object.create(null);
     const rows = [];
     let offset = 0;
     for (const fn of Object.values(functions)) {
       labels[fn.name] = offset;
-      const slots = new Map();
+      const scopes = [new Map()];
+      let nextSlot = 0;
+      offsets[fn.name] = [];
       const instructions = fn.instructions.slice();
       if (!instructions.length || instructions[instructions.length - 1].type !== "return") instructions.push({ type: "return", implicit: true });
       for (const instruction of instructions) {
+        offsets[fn.name].push(offset);
+        if (instruction.type === "loop-enter") scopes.push(new Map());
         let slot;
         if (instruction.variable !== undefined) {
-          if (!slots.has(instruction.variable)) slots.set(instruction.variable, slots.size);
-          slot = slots.get(instruction.variable);
+          let scope = scopes[scopes.length - 1];
+          if (instruction.type === "free") {
+            scope = scopes.slice().reverse().find(item => item.has(instruction.variable)) || scope;
+          }
+          if (!scope.has(instruction.variable)) scope.set(instruction.variable, nextSlot++);
+          slot = scope.get(instruction.variable);
           if (slot > 0xFFFF) throw new Error(`Function ${fn.name} has too many local variables.`);
         }
         rows.push({ fn: fn.name, offset, instruction, slot });
+        if (instruction.type === "loop-repeat") scopes.pop();
         offset += sizes[instruction.type];
         if (offset > 0xFFFFFFFF) throw new Error("Program is too large for the teaching instruction set.");
       }
@@ -135,6 +145,12 @@
       } else if (instruction.type === "call") {
         bytes.push(...littleEndian(labels[instruction.name], 4));
         text = `CALL  ${instruction.name}  ; ${hexAddress(labels[instruction.name])}`;
+      } else if (instruction.type === "loop-enter") {
+        text = "SCOPE ; enter loop block";
+      } else if (instruction.type === "loop-repeat") {
+        const target = offsets[row.fn][instruction.target];
+        bytes.push(...littleEndian(target, 4));
+        text = `REPEAT ${hexAddress(target)}  ; leave block and loop`;
       } else {
         text = instruction.implicit ? "RET   ; implicit return" : "RET";
       }

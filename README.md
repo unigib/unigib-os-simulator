@@ -8,8 +8,8 @@ A browser-based teaching simulator for exploring processes and memory. Open `ind
 - Addresses use `$`-prefixed hexadecimal byte addresses. The physical map spans `$00000000`–`$3FFFFFFF` (1,024 × 1,024 × 1,024 bytes); region ranges are inclusive. The terminal's `mem` command uses the same ranges.
 - Launch apps to allocate contiguous physical memory using first fit. Stop them to release it. Allocation can fail when no single free region is large enough, even if the total free space would be sufficient.
 - The process anatomy is a schematic virtual address space, not a scale drawing. Ordinary apps use illustrative stack and heap content; the C program shows the simulation's actual frames and allocations.
-- Use the terminal's `help`, `pwd`, `ls [path]`, `cd [path]`, `mkdir <path>`, `cat <file>`, `compile`, `ps`, `mem`, `run <editor|browser|music|lab>`, `kill <pid>`, and `clear` commands. `run lab` loads the current playground source.
-- In the C playground, load a program and press **Step** to execute one statement at a time. Each load creates a new process; stop it to reclaim its physical memory. The Step button controls the most recently loaded C program. Completed processes remain resident until stopped.
+- Use the terminal's `help`, `pwd`, `ls [path]`, `cd [path]`, `mkdir <path>`, `cat <file>`, `compile`, `ps`, `mem`, `run <editor|browser|music|lab>`, `kill <pid>`, and `clear` commands. `run lab` loads and starts the current playground source at the selected playback delay. Use `ps` to find its PID, then `kill <pid>` to stop it and release its simulated memory. The terminal keeps the latest 300 output entries.
+- In the C playground, edit the example, load it, then use **Step** or **Run slowly** to execute one statement at a time. The example uses `while (1)` to repeat until stopped with `kill <pid>` or the process stop button. The adjustable delay controls playback; **Pause** pauses it without killing the process. The live memory view shows each stack frame, local variable and active heap allocation as calls, `malloc`, `free`, and returns execute. The next source line is shown from the loaded snapshot: edits require loading again. Playback stops on completion, runtime error, or when that process is stopped or another program is loaded. Each load creates a new process; stop it to reclaim its physical memory. The controls operate on the most recently loaded C program. Completed processes remain resident until stopped.
 
 ## Simulated filesystem
 
@@ -37,7 +37,7 @@ int main() {
 }
 ```
 
-Functions must be `int` or `void` with no arguments (`()` or `(void)`). Statements may be a no-argument function call, `int` declaration with an optional integer literal, pointer declaration initialized by `malloc` with a positive integer byte count, `free` of a pointer declared in the current function frame, or `return` with an optional integer literal. Return values are ignored. `//` comments are supported. Each frame has its own local variables. Arguments, expressions, control flow, assignment, pointer arithmetic, and other C constructs are not supported. Invalid input and allocation errors are reported rather than silently executed.
+Functions must be `int` or `void` with no arguments (`()` or `(void)`). Statements may be a no-argument function call, `int` declaration with an optional integer literal, pointer declaration initialized by `malloc` with a positive integer byte count, `free` of a pointer declared in the current function frame, or `return` with an optional integer literal. A `while (1) {` block repeats indefinitely unless its function returns or the process is killed; the closing `}` must be on its own line. Block locals are recreated each iteration and may shadow outer locals; leaving a block does not automatically free heap allocations. `break`, other loop conditions, and other control flow are not supported. Return values are ignored. `//` comments are supported. Arguments, expressions, assignment, pointer arithmetic, and other C constructs are not supported. Invalid input and allocation errors are reported rather than silently executed.
 
 The C process has a separate, deliberately tiny 1,024-byte *virtual* teaching model, spanning `$0000`–`$03FF`: code and data occupy bytes 0–319, the heap starts at byte 320, and each stack frame occupies 64 bytes growing down from byte 1,024. The same address range is used illustratively for the other apps' schematic diagrams. Allocations use first fit and cannot collide with the stack. These bytes are illustrative and are not directly converted to the process's physical MB reservation. Memory-mapped devices, physical placement, and isolation are simplified models, not a representation of a real machine's complete address translation.
 
@@ -54,6 +54,8 @@ All multibyte operands are little-endian:
 | `12` | `SET slot, value` | 2-byte slot, 8-byte signed two's-complement value | Declare an integer local. |
 | `13` | `CALL label` | 4-byte unsigned instruction offset | Call a function with a new stack frame. |
 | `14` | `RET` | none | Return and remove the current frame. |
+| `15` | `SCOPE` | none | Enter a new block scope. |
+| `16` | `REPEAT offset` | 4-byte unsigned instruction offset | Leave the current block scope and jump to the loop's `SCOPE`. |
 
 For example, `ALLOC slot0, 32` is `10 00 00 20 00 00 00 00 00 00 00`: opcode `10`, slot `00 00`, then the eight-byte size. Compilation rejects integer literals outside the signed 64-bit range. The files illustrate an encoding only: there is no CPU emulator for this instruction set, and stepping continues to use the source interpreter and its runtime checks.
 

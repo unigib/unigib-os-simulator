@@ -2,6 +2,17 @@
 const assert = require("node:assert/strict");
 const sim = require("./simulator.js");
 const teaching = require("./teaching.js");
+const basicProgram = `void draw() {
+  int *pixels = malloc(32);
+  free(pixels);
+  return;
+}
+int main() {
+  int *buffer = malloc(64);
+  draw();
+  free(buffer);
+  return 0;
+}`;
 
 {
   assert.equal(sim.formatAddress(0, 4), "$0000");
@@ -35,7 +46,7 @@ const teaching = require("./teaching.js");
 
 {
   const machine = sim.createMachine();
-  const process = sim.launch(machine, "lab", sim.parseProgram(sim.EXAMPLE));
+  const process = sim.launch(machine, "lab", sim.parseProgram(basicProgram));
   sim.step(process);
   assert.equal(process.program.allocations[0].size, 64);
   sim.step(process);
@@ -95,7 +106,7 @@ const teaching = require("./teaching.js");
 }
 
 {
-  const compiled = teaching.compileProgram(sim.parseProgram(sim.EXAMPLE));
+  const compiled = teaching.compileProgram(sim.parseProgram(basicProgram));
   assert.match(compiled.assembly, /Entry point: main at \$0000000F/);
   assert.match(compiled.assembly, /\$0000001A  CALL  draw  ; \$00000000/);
   assert.equal(compiled.machine, [
@@ -115,6 +126,46 @@ const teaching = require("./teaching.js");
   assert.match(signed.machine, /\$00000000: 12 00 00 FE FF FF FF FF FF FF FF/);
   assert.match(signed.assembly, /RET   ; implicit return/);
   assert.throws(() => teaching.compileProgram(sim.parseProgram("int main() {\nint n = 9223372036854775808;\n}")), /signed 64-bit range/);
+}
+
+{
+  const process = sim.launch(sim.createMachine(), "lab", sim.parseProgram(sim.EXAMPLE));
+  const observed = [];
+  for (let i = 0; i < 40; i++) {
+    sim.step(process);
+    observed.push([process.program.frames.length, process.program.allocations.reduce((total, item) => total + item.size, 0)]);
+  }
+  assert.ok(observed.some(([frames, bytes]) => frames === 3 && bytes === 144));
+  assert.ok(observed.filter(([frames, bytes]) => frames === 1 && bytes === 0).length >= 2);
+  assert.equal(process.state, "running");
+}
+
+{
+  const source = "int main() {\nint *p = malloc(2);\nwhile (1) {\nint *p = malloc(4);\nfree(p);\n}\n}";
+  const machine = sim.createMachine();
+  const process = sim.launch(machine, "lab", sim.parseProgram(source));
+  for (let i = 0; i < 14; i++) sim.step(process);
+  assert.equal(process.state, "running");
+  assert.deepEqual(process.program.allocations.map(item => item.size), [2]);
+  assert.equal(process.program.frames[0].variables.p.allocation.size, 2);
+  const compiled = teaching.compileProgram(sim.parseProgram(source));
+  assert.match(compiled.assembly, /\$0000000B  SCOPE/);
+  assert.match(compiled.assembly, /ALLOC slot1, 4/);
+  assert.match(compiled.assembly, /FREE  slot1/);
+  assert.match(compiled.assembly, /\$0000001A  REPEAT \$0000000B/);
+  assert.match(compiled.machine, /\$0000001A: 16 0B 00 00 00/);
+  sim.stop(machine, process.pid);
+  assert.equal(machine.processes.length, 0);
+  assert.ok(sim.regions(machine).some(region => region.type === "free" && region.start === process.start && region.size === 800));
+}
+
+{
+  assert.throws(() => sim.parseProgram("int main() {\nwhile (1) {\n"), /missing a closing brace/);
+  assert.throws(() => sim.parseProgram("int main() {\nwhile (2) {\n}\n}"), /unsupported statement/);
+  const process = sim.launch(sim.createMachine(), "lab", sim.parseProgram("int main() {\nwhile (1) {\nreturn 0;\n}\n}"));
+  sim.step(process);
+  sim.step(process);
+  assert.equal(process.state, "completed");
 }
 
 console.log("All simulator tests passed.");

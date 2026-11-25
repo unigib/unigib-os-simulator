@@ -17,6 +17,7 @@
         <span class="brand-mark"><span></span><span></span><span></span><span></span></span>
         <span><strong>OS<span class="brand-accent">LAB</span></strong><small>UNIVERSITY OF GIBRALTAR</small></span>
       </a>
+      <img class="university-logo sidebar-logo" src="logo.png" alt="University of Gibraltar logo">
       <div class="side-label">WORKSPACE</div>
       <nav class="navigation" aria-label="Workspace navigation">
         <a class="nav-link active" href="#overview"><span class="nav-icon">▦</span> System overview <span class="nav-chevron">›</span></a>
@@ -42,7 +43,7 @@
     <main class="main-content" id="overview">
       <header class="topbar">
         <div class="breadcrumbs">WORKSPACE <span>/</span> <strong>OVERVIEW</strong></div>
-        <div class="top-actions"><span class="live-pill"><i></i> SIMULATION LIVE</span><span class="avatar">UG</span></div>
+        <div class="top-actions"><span class="live-pill"><i></i> SIMULATION LIVE</span><span class="avatar">UG</span><img class="university-logo mobile-logo" src="logo.png" alt="University of Gibraltar logo"></div>
       </header>
 
       <div class="content">
@@ -104,7 +105,13 @@
               <span class="code-file">● <span>main.c</span></span>
             </div>
             <div class="code-editor"><div class="editor-bar"><span class="editor-dot red"></span><span class="editor-dot yellow"></span><span class="editor-dot green-dot"></span><span>main.c</span><span class="editor-lang">C / TEACHING SUBSET</span></div><textarea id="code-input" spellcheck="false" aria-label="C source code"></textarea></div>
-            <div class="code-actions"><button class="primary-button" id="compile-button" type="button">▷ &nbsp; Load program</button><button class="secondary-button" id="step-button" type="button" disabled>↳ &nbsp; Step</button><button class="secondary-button" id="build-button" type="button">⚙ &nbsp; Compile to files</button><span id="code-status" role="status">Load the example to get started.</span></div>
+            <div class="code-actions"><button class="primary-button" id="compile-button" type="button">▷ &nbsp; Load program</button><button class="secondary-button" id="step-button" type="button" disabled>↳ &nbsp; Step</button><button class="secondary-button" id="play-button" type="button" aria-pressed="false" disabled>▶ &nbsp; Run slowly</button><label class="speed-control">Delay <select id="play-speed" aria-label="Delay between steps"><option value="500">0.5 seconds</option><option value="1000">1 second</option><option value="2000" selected>2 seconds</option><option value="3000">3 seconds</option></select></label><button class="secondary-button" id="build-button" type="button">⚙ &nbsp; Compile to files</button></div>
+            <div class="execution-status"><div id="code-status" role="status">Load the example to get started.</div><div id="next-instruction">Your next instruction will appear here.</div></div>
+            <section class="live-memory" aria-label="Live C program memory">
+              <div class="live-header"><div><strong>Live process memory</strong><span id="live-pid">Load a program to see its memory</span></div><span>NOT TO SCALE</span></div>
+              <div class="live-columns"><div class="live-region live-stack"><div class="live-region-title"><strong>↓ Stack frames</strong><span>64 B per frame</span></div><div id="live-frames" class="live-items"></div></div><div class="live-region live-heap"><div class="live-region-title"><strong>↑ Heap allocations</strong><span id="live-heap-total">0 B used</span></div><div id="live-allocations" class="live-items"></div></div></div>
+            </section>
+            <p class="code-help">Edit the example, then load it. Run slowly or step to watch each call, allocation and free. The example loops until stopped: use <code>ps</code> and <code>kill &lt;pid&gt;</code> in the terminal. Editing after loading does not change the running process; load again to apply changes. Each load creates a new process; stop old processes to reclaim memory.</p>
             <p class="code-help">Load and step runs the C teaching subset in an interpreter. Compile creates <code>program.c</code>, <code>program.asm</code>, and <code>program.hex</code> in the terminal’s current directory, replacing those files if they exist. The output uses a fictional teaching CPU, not real hardware. <a href="README.md">Language and instruction guide ↗</a></p>
             <details id="build-output" class="build-output"><summary>Compiled output</summary><p>Illustrative teaching instructions and bytes; the interpreter does not execute these files.</p><div class="build-views"><div><strong>program.asm</strong><pre id="assembly-output"></pre></div><div><strong>program.hex</strong><pre id="machine-output"></pre></div></div></details>
           </section>
@@ -114,7 +121,7 @@
               <span class="outline-pill">SHELL</span>
             </div>
             <div class="terminal-window"><div class="terminal-bar"><span class="editor-dot red"></span><span class="editor-dot yellow"></span><span class="editor-dot green-dot"></span><span id="terminal-title">guest@oslab</span></div><div class="terminal-output" id="terminal-output" aria-live="polite"></div><form id="terminal-form" class="terminal-input"><label id="terminal-prompt" for="terminal-command">guest@oslab:~$</label><input id="terminal-command" autocomplete="off" spellcheck="false" aria-label="Terminal command"></form></div>
-            <p class="code-help">Try <code>pwd</code>, <code>mkdir projects</code>, <code>cd projects</code>, and <code>compile</code>. Files reset when the page is refreshed.</p>
+            <p class="code-help">Try <code>run lab</code> to start the example, <code>ps</code> to find its PID, and <code>kill &lt;pid&gt;</code> to stop it and free its memory. Files reset when the page is refreshed.</p>
           </section>
         </div>
         <footer><span>OS LAB <span class="footer-divider">/</span> UNIVERSITY OF GIBRALTAR</span><span>Made for curious minds <span class="footer-star">✳</span></span></footer>

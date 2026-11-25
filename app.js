@@ -8,12 +8,16 @@
   const escapeHtml = value => String(value).replace(/[&<>"']/g, char => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[char]));
   const output = $("terminal-output");
   let codeMessage = "Load the example to get started.";
+  let autoRunning = false;
+  let runTimer = null;
+  let lastChanged = "";
 
   function log(message, className) {
     const line = document.createElement("div");
     if (className) line.className = className;
     line.textContent = message;
     output.appendChild(line);
+    if (output.children.length > 300) output.firstElementChild.remove();
     output.scrollTop = output.scrollHeight;
   }
 
@@ -74,6 +78,36 @@
       <div class="anatomy-bottom"><span>${sim.formatAddress(0, 4)}</span><button type="button" class="stop-button" data-stop="${process.pid}">■ &nbsp; Stop process</button></div>`;
   }
 
+  function renderLive(process) {
+    const program = process && process.program;
+    $("live-pid").textContent = program ? `PID ${process.pid} · ${process.state}` : "Load a program to see its memory";
+    $("live-heap-total").textContent = `${program ? program.allocations.reduce((sum, item) => sum + item.size, 0) : 0} B used`;
+    $("live-frames").innerHTML = program && program.frames.length ? program.frames.map((frame, index) => {
+      const start = sim.VIRTUAL_MEMORY_SIZE - (index + 1) * sim.STACK_FRAME_SIZE;
+      const locals = [frame.variables, ...frame.scopes].flatMap((scope, index) => Object.entries(scope).map(([name, value]) => {
+        const detail = value.kind === "int" ? value.value : `${sim.formatAddress(value.allocation.start, 4)}${program.allocations.includes(value.allocation) ? "" : " (freed)"}`;
+        return `${escapeHtml(name)}${index ? ` (block ${index})` : ""} = ${escapeHtml(detail)}`;
+      }));
+      return `<div class="live-item frame-item"><strong>${escapeHtml(frame.name)}()</strong><span>${sim.formatAddress(start, 4)}–${sim.formatAddress(start + sim.STACK_FRAME_SIZE - 1, 4)}</span><small>${locals.length ? locals.join(" · ") : "No local variables yet"}</small></div>`;
+    }).join("") : `<div class="live-empty">${program ? "No active stack frames." : "Stack frames will appear here."}</div>`;
+    $("live-allocations").innerHTML = program && program.allocations.length ? program.allocations.slice().sort((a, b) => a.start - b.start).map(item =>
+      `<div class="live-item allocation-item"><strong>${escapeHtml(item.name)}</strong><span>${item.size} B</span><small>${sim.formatAddress(item.start, 4)}–${sim.formatAddress(item.start + item.size - 1, 4)}</small></div>`
+    ).join("") : `<div class="live-empty">${program ? "No active heap allocations." : "Heap allocations will appear here."}</div>`;
+    document.querySelector(".live-stack").classList.toggle("recent-change", lastChanged === "stack" && !!program);
+    document.querySelector(".live-heap").classList.toggle("recent-change", lastChanged === "heap" && !!program);
+    if (!program) {
+      $("next-instruction").textContent = "Your next instruction will appear here.";
+    } else if (process.state !== "running") {
+      $("next-instruction").textContent = "Program finished. Load a program to run again.";
+    } else {
+      const frame = program.frames[program.frames.length - 1];
+      const next = program.functions[frame.name].instructions[frame.pc];
+      $("next-instruction").textContent = next
+        ? (next.type === "loop-repeat" ? `Next · line ${next.line}: repeat the while (1) loop.` : `Next · line ${next.line}: ${program.sourceLines[next.line - 1].trim()}`)
+        : `Next · return from ${frame.name}() at end of function.`;
+    }
+  }
+
   function render() {
     const used = sim.SYSTEM_REGIONS.reduce((sum, region) => sum + region.size, 0) + machine.processes.reduce((sum, process) => sum + process.size, 0);
     $("used-memory").innerHTML = `${used} <small>MB</small>`;
@@ -84,12 +118,50 @@
     renderProcesses();
     renderAnatomy();
     const program = processById(machine.programPid);
-    $("step-button").disabled = !program || program.state !== "running";
+    $("step-button").disabled = !program || program.state !== "running" || autoRunning;
+    $("play-button").disabled = !program || program.state !== "running";
+    $("play-button").textContent = autoRunning ? "⏸  Pause" : "▶  Run slowly";
+    $("play-button").setAttribute("aria-pressed", String(autoRunning));
+    renderLive(program);
     $("code-status").textContent = codeMessage;
   }
 
-  function launch(key, program) {
+  function pauseRun() {
+    autoRunning = false;
+    if (runTimer !== null) window.clearTimeout(runTimer);
+    runTimer = null;
+  }
+
+  function scheduleStep() {
+    runTimer = window.setTimeout(() => {
+      runTimer = null;
+      executeStep();
+      if (autoRunning) scheduleStep();
+    }, Number($("play-speed").value));
+  }
+
+  function executeStep() {
+    const process = processById(machine.programPid);
+    try {
+      const frame = process.program.frames[process.program.frames.length - 1];
+      const next = process.program.functions[frame.name].instructions[frame.pc];
+      codeMessage = sim.step(process);
+      const action = next ? next.type : "return";
+      lastChanged = action === "malloc" || action === "free" ? "heap" : action === "call" || action === "return" || action === "declare" ? "stack" : "";
+      machine.selectedPid = process.pid;
+      log(codeMessage, "terminal-success");
+      if (process.state !== "running") pauseRun();
+    } catch (error) {
+      pauseRun();
+      codeMessage = error.message;
+      log(error.message, "terminal-error");
+    }
+    render();
+  }
+
+  function launch(key, program, source) {
     const process = sim.launch(machine, key, program);
+    if (process.program) process.program.sourceLines = source.split(/\r?\n/);
     $("launch-status").textContent = "";
     log(`Started ${process.name} (PID ${process.pid}, ${process.size} MB).`, "terminal-success");
     render();
@@ -98,8 +170,10 @@
 
   function loadProgram(source) {
     const program = sim.parseProgram(source);
-    const process = launch("lab", program);
-    codeMessage = `PID ${process.pid} ready. Press Step to execute.`;
+    pauseRun();
+    lastChanged = "";
+    const process = launch("lab", program, source);
+    codeMessage = `PID ${process.pid} ready. Step or run slowly; use kill ${process.pid} in the terminal to stop it.`;
     render();
   }
 
@@ -149,7 +223,7 @@
       const wasCurrentProgram = machine.programPid === pid;
       const process = sim.stop(machine, pid);
       log(`Stopped ${process.name} (PID ${process.pid}).`, "terminal-success");
-      if (wasCurrentProgram) codeMessage = `PID ${process.pid} stopped. Load a program to start again.`;
+      if (wasCurrentProgram) { pauseRun(); lastChanged = ""; codeMessage = `PID ${process.pid} stopped. Load a program to start again.`; }
       render();
     } else if (!event.target.closest(".launch-wrap")) {
       $("launch-menu").classList.add("hidden");
@@ -165,17 +239,22 @@
     try { compileEditor(); }
     catch (error) { codeMessage = error.message; log(error.message, "terminal-error"); render(); }
   });
-  $("step-button").addEventListener("click", () => {
-    const process = processById(machine.programPid);
-    try {
-      codeMessage = sim.step(process);
-      machine.selectedPid = process.pid;
-      log(codeMessage, "terminal-success");
-    } catch (error) {
-      codeMessage = error.message;
-      log(error.message, "terminal-error");
-    }
+  $("step-button").addEventListener("click", executeStep);
+  $("play-button").addEventListener("click", () => {
+    if (autoRunning) pauseRun();
+    else { autoRunning = true; scheduleStep(); }
     render();
+  });
+  $("play-speed").addEventListener("change", () => {
+    if (autoRunning) {
+      window.clearTimeout(runTimer);
+      scheduleStep();
+    }
+  });
+
+  document.querySelector(".terminal-window").addEventListener("click", () => {
+    const selection = window.getSelection();
+    if (!selection || selection.isCollapsed) $("terminal-command").focus({ preventScroll: true });
   });
 
   $("terminal-form").addEventListener("submit", event => {
@@ -210,13 +289,18 @@
       } else if (verb === "mem" && !args.length) {
         sim.regions(machine).slice().reverse().forEach(region => log(`${sim.physicalRange(region)}  ${region.size} MB  ${region.name}${region.pid ? ` (PID ${region.pid})` : ""}`));
       } else if (verb === "run" && args.length === 1) {
-        if (args[0] === "lab") loadProgram($("code-input").value);
+        if (args[0] === "lab") {
+          loadProgram($("code-input").value);
+          autoRunning = true;
+          scheduleStep();
+          render();
+        }
         else launch(args[0]);
       } else if (verb === "kill" && args.length === 1 && /^\d+$/.test(args[0])) {
         const pid = Number(args[0]);
         const wasCurrentProgram = machine.programPid === pid;
         const process = sim.stop(machine, pid);
-        if (wasCurrentProgram) codeMessage = `PID ${process.pid} stopped. Load a program to start again.`;
+        if (wasCurrentProgram) { pauseRun(); lastChanged = ""; codeMessage = `PID ${process.pid} stopped. Load a program to start again.`; }
         log(`Stopped ${process.name} (PID ${process.pid}).`, "terminal-success");
         render();
       } else if (verb === "clear" && !args.length) {
