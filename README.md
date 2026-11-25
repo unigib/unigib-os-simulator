@@ -2,6 +2,8 @@
 
 A browser-based teaching simulator for exploring processes and memory. Open `index.html` in a modern browser; no installation or server is required. Everything runs locally and resets when the page is refreshed.
 
+**Live site:** [OS Lab on AWS Amplify](https://main.d29cplusrlwdq8.amplifyapp.com/)
+
 ## Explore
 
 - The physical memory map shows a simplified 1,024 MB address space, with the operating system at the bottom, reserved video and device I/O regions, processes, and free space. Select a process in the map or process list to inspect it.
