@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f3f5fa">
+  <title>OS Lab | University of Gibraltar</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <a class="brand" href="#" aria-label="OS Lab home">
+        <span class="brand-mark"><span></span><span></span><span></span><span></span></span>
+        <span><strong>OS<span class="brand-accent">LAB</span></strong><small>UNIVERSITY OF GIBRALTAR</small></span>
+      </a>
+      <div class="side-label">WORKSPACE</div>
+      <nav class="navigation" aria-label="Workspace navigation">
+        <a class="nav-link active" href="#overview"><span class="nav-icon">▦</span> System overview <span class="nav-chevron">›</span></a>
+        <a class="nav-link" href="#memory"><span class="nav-icon">▤</span> Memory map</a>
+        <a class="nav-link" href="#processes"><span class="nav-icon">◈</span> Processes</a>
+        <a class="nav-link" href="#c-lab"><span class="nav-icon">&lt;/&gt;</span> C playground</a>
+        <a class="nav-link" href="#terminal"><span class="nav-icon">⌘</span> Terminal</a>
+      </nav>
+      <div class="side-label learning-label">YOUR LAB</div>
+      <div class="lesson-card">
+        <div class="lesson-icon">✳</div>
+        <div class="lesson-title">Learn by doing</div>
+        <p>Launch a process and see how it lives in memory.</p>
+        <a href="#c-lab">Explore the C lab <span>↗</span></a>
+      </div>
+      <div class="sidebar-bottom">
+        <div class="status-dot"></div>
+        <div><strong>Simulator online</strong><small>All systems operational</small></div>
+        <span class="version">v1.0</span>
+      </div>
+    </aside>
+
+    <main class="main-content" id="overview">
+      <header class="topbar">
+        <div class="breadcrumbs">WORKSPACE <span>/</span> <strong>OVERVIEW</strong></div>
+        <div class="top-actions"><span class="live-pill"><i></i> SIMULATION LIVE</span><span class="avatar">UG</span></div>
+      </header>
+
+      <div class="content">
+        <section class="page-heading">
+          <div>
+            <div class="eyebrow"><span class="spark">✳</span> THE INTERACTIVE OS SIMULATOR</div>
+            <h1>See what’s <span>under the hood.</span></h1>
+            <p>Explore how an operating system manages memory, processes, and the programs you run.</p>
+          </div>
+          <div class="heading-badge"><span>◷</span><div><strong>LEARNING MODE</strong><small>A safe space to experiment</small></div></div>
+        </section>
+
+        <section class="stats" aria-label="System statistics">
+          <div class="stat-card"><div class="stat-icon purple">◫</div><div><div class="stat-label">TOTAL MEMORY</div><div class="stat-value">1,024 <small>MB</small></div></div><span class="stat-note">SIMULATED</span></div>
+          <div class="stat-card"><div class="stat-icon blue">▥</div><div><div class="stat-label">MEMORY IN USE</div><div class="stat-value" id="used-memory">—</div></div><span class="stat-note" id="used-percent">—</span></div>
+          <div class="stat-card"><div class="stat-icon green">◈</div><div><div class="stat-label">ACTIVE PROCESSES</div><div class="stat-value" id="process-count">—</div></div><span class="stat-note"><i class="tiny-dot"></i> RUNNING</span></div>
+          <div class="stat-card"><div class="stat-icon orange">⌁</div><div><div class="stat-label">SYSTEM STATUS</div><div class="stat-value status-value">Healthy</div></div><span class="stat-note">●</span></div>
+        </section>
+
+        <div class="dashboard-grid">
+          <section class="panel memory-panel" id="memory">
+            <div class="panel-header">
+              <div><div class="section-kicker">01 / THE BIG PICTURE</div><h2>Physical memory <span class="info" title="A simplified physical address space">i</span></h2><p>Where everything lives in RAM</p></div>
+              <span class="outline-pill">1 GB TOTAL</span>
+            </div>
+            <div class="memory-diagram">
+              <div class="memory-caption"><span id="physical-high"></span><span>↑</span></div>
+              <div class="memory-map" id="memory-map"></div>
+              <div class="memory-caption bottom-caption"><span id="physical-low"></span><span>↓</span></div>
+            </div>
+            <div class="memory-legend"><span><i class="legend-kernel"></i> Kernel</span><span><i class="legend-device"></i> Device I/O</span><span><i class="legend-process"></i> Processes</span><span><i class="legend-free"></i> Available</span></div>
+            <div class="tip"><span>✦</span><p><strong>Did you know?</strong> The kernel manages memory on behalf of every running process. Device regions shown here are a simplified illustration of memory-mapped I/O.</p></div>
+          </section>
+
+          <div class="right-column">
+            <section class="panel process-panel" id="processes">
+              <div class="panel-header compact">
+                <div><div class="section-kicker">02 / WHAT'S RUNNING</div><h2>Processes <span class="count-badge" id="process-badge">0</span></h2><p>Select a process to look inside</p></div>
+                <div class="launch-wrap"><button class="primary-button" id="launch-toggle" type="button"><span>＋</span> Launch app</button><div class="launch-menu hidden" id="launch-menu"></div></div>
+              </div>
+              <div id="launch-status" class="launch-status" role="status"></div>
+              <div class="process-list" id="process-list"></div>
+            </section>
+
+            <section class="panel anatomy-panel">
+              <div class="panel-header compact">
+                <div><div class="section-kicker">03 / A CLOSER LOOK</div><h2>Process anatomy</h2><p id="anatomy-subtitle">Select a process to inspect its memory</p></div>
+                <span class="outline-pill" id="anatomy-pid">NO PROCESS</span>
+              </div>
+              <div id="anatomy-content" class="anatomy-content"></div>
+            </section>
+          </div>
+        </div>
+
+        <div class="lower-grid">
+          <section class="panel code-panel" id="c-lab">
+            <div class="panel-header compact">
+              <div><div class="section-kicker">04 / LEARN BY DOING</div><h2>C playground <span class="beta-pill">SIMULATED</span></h2><p>Step through function calls and watch memory change.</p></div>
+              <span class="code-file">● <span>main.c</span></span>
+            </div>
+            <div class="code-editor"><div class="editor-bar"><span class="editor-dot red"></span><span class="editor-dot yellow"></span><span class="editor-dot green-dot"></span><span>main.c</span><span class="editor-lang">C / TEACHING SUBSET</span></div><textarea id="code-input" spellcheck="false" aria-label="C source code"></textarea></div>
+            <div class="code-actions"><button class="primary-button" id="compile-button" type="button">▷ &nbsp; Load program</button><button class="secondary-button" id="step-button" type="button" disabled>↳ &nbsp; Step</button><button class="secondary-button" id="build-button" type="button">⚙ &nbsp; Compile to files</button><span id="code-status" role="status">Load the example to get started.</span></div>
+            <p class="code-help">Load and step runs the C teaching subset in an interpreter. Compile creates <code>program.c</code>, <code>program.asm</code>, and <code>program.hex</code> in the terminal’s current directory, replacing those files if they exist. The output uses a fictional teaching CPU, not real hardware. <a href="README.md">Language and instruction guide ↗</a></p>
+            <details id="build-output" class="build-output"><summary>Compiled output</summary><p>Illustrative teaching instructions and bytes; the interpreter does not execute these files.</p><div class="build-views"><div><strong>program.asm</strong><pre id="assembly-output"></pre></div><div><strong>program.hex</strong><pre id="machine-output"></pre></div></div></details>
+          </section>
+          <section class="panel terminal-panel" id="terminal">
+            <div class="panel-header compact">
+              <div><div class="section-kicker">05 / TAKE CONTROL</div><h2>Terminal <span class="terminal-live">●</span></h2><p>A little command line for your OS.</p></div>
+              <span class="outline-pill">SHELL</span>
+            </div>
+            <div class="terminal-window"><div class="terminal-bar"><span class="editor-dot red"></span><span class="editor-dot yellow"></span><span class="editor-dot green-dot"></span><span id="terminal-title">guest@oslab</span></div><div class="terminal-output" id="terminal-output" aria-live="polite"></div><form id="terminal-form" class="terminal-input"><label id="terminal-prompt" for="terminal-command">guest@oslab:~$</label><input id="terminal-command" autocomplete="off" spellcheck="false" aria-label="Terminal command"></form></div>
+            <p class="code-help">Try <code>pwd</code>, <code>mkdir projects</code>, <code>cd projects</code>, and <code>compile</code>. Files reset when the page is refreshed.</p>
+          </section>
+        </div>
+        <footer><span>OS LAB <span class="footer-divider">/</span> UNIVERSITY OF GIBRALTAR</span><span>Made for curious minds <span class="footer-star">✳</span></span></footer>
+      </div>
+    </main>
+  </div>
+  <script src="simulator.js"></script>
+  <script src="teaching.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
